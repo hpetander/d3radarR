@@ -1,0 +1,41 @@
+Package: d3radarR
+Type: Package
+Title: htmlwidget for d3.js radar charts
+Version: 0.1
+Date: 2015-12-02
+Authors@R: c(
+      person(
+        "Mike", "Bostock"
+        , role = c("aut", "cph")
+        , comment = "d3.js library in htmlwidgets/lib, http://d3js.org"
+      ),
+      person(
+        "Charles", "Allen"
+        , role = c("aut", "cph")
+        , comment = "radar chart library in htmlwidgets/lib, https://github.com/TennisVisuals"
+      ),
+      person(
+        "Nadieh", "Bremer"
+        , role = c("aut", "cph")
+        , comment = "basis of radar chart library in htmlwidgets/lib, http://www.visualcinnamon.com/2015/10/different-look-d3-radar-chart.html"
+      ),      
+      person(
+        "Kent", "Russell"
+        , role = c("aut", "cre")
+        , comment = "R interface"
+        , email = "kent.russell@timelyportfolio.com"
+      )
+    )
+Maintainer: Kenton Russell <kent.russell@timelyportfolio.com>
+Description: Make interactive d3.js radar charts in R with the convenience and
+    infrastructure of an htmlwidget.
+License: MIT + file LICENSE
+LazyData: TRUE
+Imports:
+    htmlwidgets,
+    htmltools,
+    markdown
+Suggests:
+    knitr
+VignetteBuilder: knitr
+RoxygenNote: 4.1.1.9001
