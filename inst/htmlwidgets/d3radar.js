@@ -23,11 +23,14 @@ HTMLWidgets.widget({
     
     d3.select(el)
       .call(radarChart);
-      
+    
+    
     radarChart
       .data(x.data)
-      .options({'filter':false})  // disable filter for now since needs unique id
+      .options({'filter':false}) // disable filter for now since needs unique id
+      .options({'legend': {display: true}}) //turn on legend by default
       .update();
+
   },
 
   resize: function(el, width, height, instance) {

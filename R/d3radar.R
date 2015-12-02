@@ -2,6 +2,8 @@
 #'
 #' <Add Description>
 #'
+#' @example inst/examples/examples.R
+#' 
 #' @import htmlwidgets
 #'
 #' @export
