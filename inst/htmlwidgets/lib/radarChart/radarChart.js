@@ -1,16 +1,21 @@
 function RadarChart() {
 
+   var uuid = UUID.generate();
+
    // TODO:
    // wrapWidth should probably be calculated rather than an option
    // slider to change maxValue on the fly
    // filter update make sure there is an element with URL
    //
+   // show axis tics/legend when hover over axis label or data point
+   //
+   // popup div/panel for selecting axes to display and ranges and whether to invert
    
    // options which should be accessible via ACCESSORS
    var data = [];
-   var _data = [];
    var options = {
-      filter: 'glow',        // define your own filter; false = no filter;
+      filter: 'rcGlow' + uuid,            // define your own filter; false = no filter;
+      filter_id: 'rcGlow' + uuid,         // assign unique name for default filter
 
       width: window.innerWidth,
 	   height: window.innerHeight,
@@ -43,12 +48,15 @@ function RadarChart() {
       },
 
       axes: {
+         display: true,
          lineColor: "white",
          lineWidth: "2px",
+         fontWidth: "11px",
+         fontColor: "black",
          wrapWidth: 60,	      // The number of pixels after which a label needs to be given a new line
          filter: [],
          invert: [],
-         ranges: {"Large Screen": [0, 1]}           // { axisname: [min, max], axisname: [min, max]  }
+         ranges: {}           // { axisname: [min, max], axisname: [min, max]  }
       },
 
       legend: {
@@ -57,6 +65,8 @@ function RadarChart() {
          toggle: 'circle',
          position: { x: 25, y: 25 }
       },
+
+      class: "rc",
 
       color: d3.scale.category10()	   //Color function
    }
@@ -88,6 +98,7 @@ function RadarChart() {
    var tooltip;
 
    // programmatic
+   var _data = [];
    var radial_calcs = {};
    var Format = d3.format('%'); // Percentage formatting
    var transition_time = 0;
@@ -106,21 +117,20 @@ function RadarChart() {
 
             //////////// Create the container SVG and children g /////////////
             var svg = dom.append('svg')
-                .attr('class', 'svg-class')
                 .attr('width', options.width)
                 .attr('height', options.height);
 
             // append parent g for chart
-            chart_node = svg.append('g').attr('class', 'radar_node');
-            hover_node = svg.append('g').attr('class', 'hover_node');
-            tooltip_node = svg.append('g').attr('class', 'tooltip_node');
-            legend_node = svg.append("g").attr("class", "legendOrdinal");
+            chart_node = svg.append('g').attr('class', options.class + 'RadarNode');
+            hover_node = svg.append('g').attr('class', options.class + 'HoverNode');
+            tooltip_node = svg.append('g').attr('class', options.class + 'TooltipNode');
+            legend_node = svg.append("g").attr("class", options.class + "Legend");
 
             // Wrapper for the grid & axes
-            var axisGrid = chart_node.append("g").attr("class", "axisWrapper");
+            var axisGrid = chart_node.append("g").attr("class", options.class + "AxisWrapper");
 
             ////////// Glow filter for some extra pizzazz ///////////
-            var filter = chart_node.append('defs').append('filter').attr('id','glow'),
+            var filter = chart_node.append('defs').append('filter').attr('id', options.filter_id),
                feGaussianBlur = filter.append('feGaussianBlur').attr('stdDeviation','2.5').attr('result','coloredBlur'),
                feMerge = filter.append('feMerge'),
                feMergeNode_1 = feMerge.append('feMergeNode').attr('in','coloredBlur'),
@@ -128,7 +138,7 @@ function RadarChart() {
 
             // Set up the small tooltip for when you hover over a circle
             tooltip = tooltip_node.append("text")
-               .attr("class", "tooltip")
+               .attr("class", options.class + 'Tooltip')
                .style("opacity", 0);
            
             // update
@@ -176,7 +186,7 @@ function RadarChart() {
                 legend_node
                      .attr("transform", "translate(" + options.legend.position.x + "," + options.legend.position.y + ")");
 
-                var update_gridCircles = axisGrid.selectAll(".gridCircle")
+                var update_gridCircles = axisGrid.selectAll("." + options.class + "GridCircle")
                      .data(d3.range(1, (options.circles.levels + 1)).reverse())
 
                 update_gridCircles
@@ -189,7 +199,7 @@ function RadarChart() {
 
                 update_gridCircles.enter()
                     .append("circle")
-                    .attr("class", "gridCircle")
+                    .attr("class", options.class + "GridCircle")
                     .attr("r", function(d, i) { return radial_calcs.radius / options.circles.levels * d; })
                     .on('mouseover', function(d, i) { if (events.gridCircle.mouseover) events.gridCircle.mouseover(d, i); })
                     .on('mouseout', function(d, i) { if (events.gridCircle.mouseout) events.gridCircle.mouseout(d, i); })
@@ -203,7 +213,7 @@ function RadarChart() {
                     .delay(function(d, i) { return 0; })
                     .remove();
 
-                var update_axisLabels = axisGrid.selectAll(".axisLabel")
+                var update_axisLabels = axisGrid.selectAll("." + options.class + "AxisLabel")
                     .data(d3.range(1, (options.circles.levels + 1)).reverse())
 
                 update_axisLabels
@@ -216,7 +226,7 @@ function RadarChart() {
 
                 update_axisLabels.enter()
                     .append("text")
-                    .attr("class", "axisLabel")
+                    .attr("class", options.class + "AxisLabel")
                     .attr("x", 4)
                     .attr("y", function(d) { return -d * radial_calcs.radius / options.circles.levels; })
                     .attr("dy", "0.4em")
@@ -230,12 +240,12 @@ function RadarChart() {
                     .transition().duration(duration * .5)
                     .remove();
 
-                var update_axes = axisGrid.selectAll(".axis")
+                var update_axes = axisGrid.selectAll("." + options.class + "Axis")
                     .data(radial_calcs.axes, get_axis)
 
                 update_axes
                    .enter().append("g")
-                   .attr("class", "axis")
+                   .attr("class", options.class + "Axis")
                    .attr("key", function(d) { return d.axis; });
 
                 update_axes.exit()
@@ -243,12 +253,12 @@ function RadarChart() {
                    .style('opacity', 0)
                    .remove()
 
-                var update_lines = update_axes.selectAll(".line")
+                var update_lines = update_axes.selectAll("." + options.class + "Line")
                     .data(function(d) { return [d]; }, get_axis)
 
                 update_lines.enter()
                     .append("line")
-                    .attr("class", "line")
+                    .attr("class", options.class + "Line")
                     .attr("x1", 0)
                     .attr("y1", 0)
                     .attr("x2", function(d, i, j) { return calcX(null, 1.1, j); })
@@ -270,13 +280,13 @@ function RadarChart() {
                     .attr("x2", function(d, i, j) { return calcX(null, 1.1, j); })
                     .attr("y2", function(d, i, j) { return calcY(null, 1.1, j); })
 
-                var update_axis_legends = update_axes.selectAll(".axis_legend")
+                var update_axis_legends = update_axes.selectAll("." + options.class + "AxisLegend")
                     .data(function(d) { return [d]; }, get_axis)
 
                 update_axis_legends.enter()
                     .append("text")
-                    .attr("class", "axis_legend")
-                    .style("font-size", "11px")
+                    .attr("class", options.class + "AxisLegend")
+                    .style("font-size", options.axes.fontWidth)
                     .attr("text-anchor", "middle")
                     .attr("dy", "0.35em")
                     .attr("x", function(d, i, j) { return calcX(null, options.circles.labelFactor, j); })
@@ -305,12 +315,12 @@ function RadarChart() {
                    .radius(function(d) { return radial_calcs.rScale(d.value); })
                    .angle(function(d,i) {	return i * radial_calcs.angleSlice; });
 
-                var update_blobWrapper = chart_node.selectAll(".radarWrapper")
+                var update_blobWrapper = chart_node.selectAll("." + options.class + "RadarWrapper")
                    .data(_data, get_key)
 
                 update_blobWrapper.enter()
                    .append("g")
-                   .attr("class", "radarWrapper")
+                   .attr("class", options.class + "RadarWrapper")
                    .attr("key", function(d) { return d.key; });
 
                 update_blobWrapper.exit()
@@ -318,12 +328,12 @@ function RadarChart() {
                    .style('opacity', 0)
                    .remove()
 
-                var update_radarArea = update_blobWrapper.selectAll('.radarArea')
+                var update_radarArea = update_blobWrapper.selectAll('.' + options.class + 'RadarArea')
                    .data(function(d) { return [d]; }, get_key);
 
                 update_radarArea.enter()
                    .append("path")
-                   .attr("class", function(d) { return "radarArea " + d.key.replace(/\s+/g, '') })
+                   .attr("class", function(d) { return options.class + "RadarArea " + d.key.replace(/\s+/g, '') })
                    .attr("d", function(d, i) { return radarLine(d.values); })
                    .style("fill", function(d, i, j) { return setColor(d); })
                    .style("fill-opacity", 0)
@@ -340,12 +350,12 @@ function RadarChart() {
                       return options.areas.filter.indexOf(d.key) >= 0 ? 0 : options.areas.opacity;
                    })
 
-                var update_radarStroke = update_blobWrapper.selectAll('.radarStroke')
+                var update_radarStroke = update_blobWrapper.selectAll('.' + options.class + 'RadarStroke')
                    .data(function(d) { return [d]; }, get_key);
 
                 update_radarStroke.enter()
                    .append("path")
-                   .attr("class", "radarStroke")
+                   .attr("class", options.class + "RadarStroke")
                    .attr("d", function(d, i) { return radarLine(d.values); })
                    .style("opacity", 0)
                    .style("stroke-width", options.areas.borderWidth + "px")
@@ -364,12 +374,12 @@ function RadarChart() {
                       return options.areas.filter.indexOf(d.key) >= 0 ? 0 : 1;
                    });
 
-                update_radarCircle = update_blobWrapper.selectAll('.radarCircle')
+                update_radarCircle = update_blobWrapper.selectAll('.' + options.class + 'RadarCircle')
                    .data(function(d, i) { return add_index(d._i, d.values); });
 
                 update_radarCircle.enter()
                    .append("circle")
-                   .attr("class", "radarCircle")
+                   .attr("class", options.class + "RadarCircle")
                    .attr("r", options.areas.dotRadius)
                    .attr("cx", function(d, i){ return calcX(0, 0, i); })
                    .attr("cy", function(d, i){ return calcY(0, 0, i); })
@@ -392,12 +402,12 @@ function RadarChart() {
                    .attr("cx", function(d, i){ return calcX(d.value, 0, i); })
                    .attr("cy", function(d, i){ return calcY(d.value, 0, i); })
  
-                var update_blobCircleWrapper = hover_node.selectAll(".radarCircleWrapper")
+                var update_blobCircleWrapper = hover_node.selectAll("." + options.class + "RadarCircleWrapper")
                    .data(_data, get_key)
 
-                update_blobCircleWrapper
-                   .enter().append("g")
-                   .attr("class", "radarCircleWrapper")
+                update_blobCircleWrapper.enter()
+                   .append("g")
+                   .attr("class", options.class + "RadarCircleWrapper")
                    .attr("key", function(d) { return d.key; });
 
                 update_blobCircleWrapper.exit()
@@ -405,12 +415,12 @@ function RadarChart() {
                    .style('opacity', 0)
                    .remove()
 
-                update_radarInvisibleCircle = update_blobCircleWrapper.selectAll(".radarInvisibleCircle")
+                update_radarInvisibleCircle = update_blobCircleWrapper.selectAll("." + options.class + "RadarInvisibleCircle")
                    .data(function(d, i) { return add_index(d._i, d.values); });
 
                 update_radarInvisibleCircle.enter()
                    .append("circle")
-                   .attr("class", "radarInvisibleCircle")
+                   .attr("class", options.class + "RadarInvisibleCircle")
                    .attr("r", options.areas.dotRadius * 1.5)
                    .attr("cx", function(d, i){ return calcX(d.value, 0, i); })
                    .attr("cy", function(d, i){ return calcY(d.value, 0, i); })
@@ -656,10 +666,6 @@ function RadarChart() {
        return chart;
     }
 
-    chart.updateDimensions = function() {
-        if (typeof updateDimensions === 'function') updateDimensions(transition_time);
-    }
-
     chart.update = function() {
         if (events.update.begin) events.update.begin(_data); 
         if (typeof updateData === 'function') updateData();
@@ -675,7 +681,9 @@ function RadarChart() {
     };
 
     chart.pop = function() {
-        return data.pop();
+        var row = data.pop()
+        if (typeof updateData === 'function') updateData();
+        return row;
     };
 
     chart.push = function(row) {
@@ -697,7 +705,9 @@ function RadarChart() {
     };
 
     chart.shift = function() {
-        return data.shift();
+        var row = data.shift();
+        if (typeof updateData === 'function') updateData();
+        return row;
     };
 
     chart.unshift = function(row) {
@@ -874,7 +884,7 @@ function RadarChart() {
    // --------------
    function areaMouseover(d, i, self) {
       //Dim all blobs
-      d3.selectAll(".radarArea")
+      d3.selectAll("." + options.class + "RadarArea")
          .transition().duration(200)
 			.style("fill-opacity", function(d, i, j) {
             return options.areas.filter.indexOf(d.key) >= 0 ? 0 : 0.1;
@@ -889,7 +899,7 @@ function RadarChart() {
 
    function areaMouseout(d, i, self) {
       //Bring back all blobs
-      d3.selectAll(".radarArea")
+      d3.selectAll("." + options.class + "RadarArea")
          .transition().duration(200)
          .style("fill-opacity", function(d, i, j) {
             return options.areas.filter.indexOf(d.key) >= 0 ? 0 : options.areas.opacity;
@@ -901,13 +911,13 @@ function RadarChart() {
          var area = keys.indexOf(d) >= 0 ? d : keyScale(d); 
 
 			//Dim all blobs
-			d3.selectAll(".radarArea")
+			d3.selectAll("." + options.class + "RadarArea")
 				.transition().duration(200)
 				.style("fill-opacity", function(d, i, j) {
                return options.areas.filter.indexOf(d.key) >= 0 ? 0 : 0.1;
             }); 
 			//Bring back the hovered over blob
-         d3.selectAll(".radarArea." + area.replace(/\s+/g, ''))
+         d3.selectAll("." + options.class + "RadarArea." + area.replace(/\s+/g, ''))
 				.transition().duration(200)
 				.style("fill-opacity", function(d, i, j) {
                return options.areas.filter.indexOf(d.key) >= 0 ? 0 : 0.7;
@@ -935,7 +945,7 @@ function RadarChart() {
          newY =  parseFloat(d3.select(self).attr('cy')) - 10;
             
          tooltip
-           .attr('x', newX)
+          .attr('x', newX)
           .attr('y', newY)
           .text(value)
           .transition().duration(200)
@@ -991,3 +1001,19 @@ function RadarChart() {
 
    return chart;
 }
+
+var UUID = (function() {
+  var self = {};
+  var lut = []; for (var i=0; i<256; i++) { lut[i] = (i<16?'0':'')+(i).toString(16); }
+  self.generate = function() {
+    var d0 = Math.random()*0xffffffff|0;
+    var d1 = Math.random()*0xffffffff|0;
+    var d2 = Math.random()*0xffffffff|0;
+    var d3 = Math.random()*0xffffffff|0;
+    return lut[d0&0xff]+lut[d0>>8&0xff]+lut[d0>>16&0xff]+lut[d0>>24&0xff]+'-'+
+      lut[d1&0xff]+lut[d1>>8&0xff]+'-'+lut[d1>>16&0x0f|0x40]+lut[d1>>24&0xff]+'-'+
+      lut[d2&0x3f|0x80]+lut[d2>>8&0xff]+'-'+lut[d2>>16&0xff]+lut[d2>>24&0xff]+
+      lut[d3&0xff]+lut[d3>>8&0xff]+lut[d3>>16&0xff]+lut[d3>>24&0xff];
+  }
+  return self;
+})();

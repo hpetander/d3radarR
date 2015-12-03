@@ -53,6 +53,10 @@ json_data = jsonlite::fromJSON(
 
 d3radar(json_data)
 
+# let's see if more than one can exist on a page
+library(htmltools)
+browsable(tagList(d3radar(json_data),d3radar(json_data)))
+
 # use example from ?stars
 library(d3radarR)
 library(scales)
