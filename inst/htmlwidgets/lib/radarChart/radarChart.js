@@ -8,7 +8,6 @@ function RadarChart() {
    // filter update make sure there is an element with URL
    //
    // show axis tics/legend when hover over axis label or data point
-   // set threshold for axis legends so they 'disappaar' when radar shrinks
    // add abstract axis legend hover area... 'eyebrows' or 'dots'
    //
    // popup div/panel for selecting axes to display and ranges and whether to invert
@@ -19,8 +18,15 @@ function RadarChart() {
       filter: 'rcGlow' + uuid,            // define your own filter; false = no filter;
       filter_id: 'rcGlow' + uuid,         // assign unique name for default filter
 
+      resize: false,
+
       width: window.innerWidth,
+      widthMax: window.innerWidth,
+
 	   height: window.innerHeight,
+      heightMax: window.innerHeight,
+
+      minRadius: 80,
 
       // Margins for the SVG
       margins: {
@@ -45,12 +51,13 @@ function RadarChart() {
          borderWidth: 2,
          rounded: true,
          dotRadius: 4,
-         sort: false,          // sort layers by approximation of size, smallest on top
+         sort: true,          // sort layers by approximation of size, smallest on top
          filter: []
       },
 
       axes: {
          display: true,
+         threshold: 90,    // radius threshold for hiding
          lineColor: "white",
          lineWidth: "2px",
          fontWidth: "11px",
@@ -88,19 +95,20 @@ function RadarChart() {
       'axisLabel': { 'mouseover': null, 'mouseout': null, 'mouseclick': null },
       'line': { 'mouseover': null, 'mouseout': null, 'mouseclick': null },
       'legend': { 'mouseover': legendMouseover, 'mouseout': areaMouseout, 'mouseclick': legendClick },
-      'axis_legend': { 'mouseover': null, 'mouseout': null, 'mouseclick': null },
+      'axisLegend': { 'mouseover': null, 'mouseout': null, 'mouseclick': null },
       'radarArea': { 'mouseover': areaMouseover, 'mouseout': areaMouseout, 'mouseclick': null },
       'radarInvisibleCircle': { 'mouseover': tooltip_show, 'mouseout': tooltip_hide, 'mouseclick': null }
    };
 
    // functions which should be accessible via ACCESSORS
-   var updateData;
+   var update;
 
    // helper functions
    var tooltip;
 
    // programmatic
    var _data = [];
+   var legend_toggles = [];
    var radial_calcs = {};
    var Format = d3.format('%'); // Percentage formatting
    var transition_time = 0;
@@ -108,6 +116,7 @@ function RadarChart() {
    var keys;
    var keyScale;
    var colorScale;
+   var dom_parent;
 
    function chart(selection) {
         selection.each(function () {
@@ -115,10 +124,11 @@ function RadarChart() {
             dataCalcs();
             radialCalcs();
 
-            var dom = d3.select(this);
+            dom_parent = d3.select(this);
+            scaleChart();
 
             //////////// Create the container SVG and children g /////////////
-            var svg = dom.append('svg')
+            var svg = dom_parent.append('svg')
                 .attr('width', options.width)
                 .attr('height', options.height);
 
@@ -144,7 +154,8 @@ function RadarChart() {
                .style("opacity", 0);
            
             // update
-            updateData = function() {
+            update = function() {
+
                 var duration = transition_time;
 
                 dataCalcs();
@@ -293,8 +304,9 @@ function RadarChart() {
                     .attr("dy", "0.35em")
                     .attr("x", function(d, i, j) { return calcX(null, options.circles.labelFactor, j); })
                     .attr("y", function(d, i, j) { return calcY(null, options.circles.labelFactor, j); })
-                    .on('mouseover', function(d, i, j) { if (events.axis_legend.mouseover) events.axis_legend.mouseover(d, i, j); })
-                    .on('mouseout', function(d, i, j) { if (events.axis_legend.mouseout) events.axis_legend.mouseout(d, i, j); })
+                    .style('opacity', function(d, i) { return options.axes.display ? 1 : 0})
+                    .on('mouseover', function(d, i, j) { if (events.axisLegend.mouseover) events.axisLegend.mouseover(d, i, j); })
+                    .on('mouseout', function(d, i, j) { if (events.axisLegend.mouseout) events.axisLegend.mouseout(d, i, j); })
                     .call(wrap, options.axes.wrapWidth)
 
                 update_axis_legends.exit()
@@ -304,6 +316,9 @@ function RadarChart() {
 
                 update_axis_legends
                     .transition().duration(duration)
+                    .style('opacity', function(d, i) { 
+                       return options.axes.display && radial_calcs.radius > options.axes.threshold ? 1 : 0
+                    })
                     .attr("x", function(d, i, j) { return calcX(null, options.circles.labelFactor, j); })
                     .attr("y", function(d, i, j) { return calcY(null, options.circles.labelFactor, j); })
                     .selectAll('tspan')
@@ -448,8 +463,6 @@ function RadarChart() {
 
                 if (options.legend.display) {
                    var shape = d3.svg.symbol().type(options.legend.symbol).size(150)();
-                   var foo;
-                   legend_node.selectAll('cell').remove();
                    var colorScale = d3.scale.ordinal()
                       .domain(_data.map(function(m) { return m._i; }))
                       .range(_data.map(function(m) { return setColor(m); }));
@@ -472,6 +485,18 @@ function RadarChart() {
     
                       legend_node
                         .call(legendOrdinal);
+
+                      legend_node.selectAll('.cell')
+                        .attr('gen', function(d, i) { 
+                           if (legend_toggles[d] == true) {
+                              var shape = d3.svg.symbol().type(options.legend.toggle).size(150)()
+                           } else {
+                              var shape = d3.svg.symbol().type(options.legend.symbol).size(150)()
+                           }
+                           d3.select(this).select('path').attr('d', function() { return shape; });
+                           return legend_toggles[d];
+                        });
+
                    }
                }
 
@@ -559,7 +584,7 @@ function RadarChart() {
       radial_calcs = {
          // Radius of the outermost circle
          radius: Math.min((options.width - (options.margins.left + options.margins.right)) / 2, 
-                          (options.height - (options.margins.bottom + options.margins.top)) /2),
+                          (options.height - (options.margins.bottom + options.margins.top)) / 2),
          axes: axes,
          axisLabels: axisLabels,
 
@@ -568,6 +593,7 @@ function RadarChart() {
             return d3.max(i.values.map( function(o) { return o.value; })) 
          }))
       }
+      radial_calcs.radius = Math.max(radial_calcs.radius, options.minRadius);
       radial_calcs.total = radial_calcs.axes.length;
 
       // The width in radians of each "slice"
@@ -657,13 +683,23 @@ function RadarChart() {
 
     chart.width = function(value) {
         if (!arguments.length) return options.width;
-        options.width = value;
+        if (options.resize) {
+           options.widthMax = value;
+        } else {
+           options.width = value;
+        }
+        scaleChart();
         return chart;
     };
 
     chart.height = function(value) {
         if (!arguments.length) return options.height;
-        options.height = value;
+        if (options.resize) {
+           options.heightMax = value;
+        } else {
+           options.height = value;
+        }
+        scaleChart();
         return chart;
     };
 
@@ -675,7 +711,7 @@ function RadarChart() {
 
     chart.update = function() {
         if (events.update.begin) events.update.begin(_data); 
-        if (typeof updateData === 'function') updateData();
+        if (typeof update === 'function') update();
          setTimeout(function() { 
            if (events.update.end) events.update.end(_data); 
          }, transition_time);
@@ -683,13 +719,18 @@ function RadarChart() {
 
     chart.data = function(value) {
         if (!arguments.length) return data;
+        if (legend_toggles.length) {
+           var keys = _data.map(function(m) {return m.key});
+           legend_toggles.forEach(function (e, i) { chart.filterAreas(keys[i]); })
+        }
+        legend_toggles = [];
         data = value;
         return chart;
     };
 
     chart.pop = function() {
         var row = data.pop()
-        if (typeof updateData === 'function') updateData();
+        if (typeof update === 'function') update();
         return row;
     };
 
@@ -713,7 +754,7 @@ function RadarChart() {
 
     chart.shift = function() {
         var row = data.shift();
-        if (typeof updateData === 'function') updateData();
+        if (typeof update === 'function') update();
         return row;
     };
 
@@ -890,6 +931,7 @@ function RadarChart() {
    // DEFAULT EVENTS
    // --------------
    function areaMouseover(d, i, self) {
+      if (legend_toggles[d._i]) return;
       //Dim all blobs
       chart_node.selectAll("." + options.class + "RadarArea")
          .transition().duration(200)
@@ -915,6 +957,7 @@ function RadarChart() {
 
    // on mouseover for the legend symbol
 	function legendMouseover(d, i, self) {
+         if (legend_toggles[d]) return;
          var area = keys.indexOf(d) >= 0 ? d : keyScale(d); 
 
 			//Dim all blobs
@@ -934,18 +977,14 @@ function RadarChart() {
    function legendClick(d, i, self) {
          var keys = _data.map(function(m) {return m.key});
          modifyList(options.areas.filter, keys[d], keys);
-         updateData();
-         var state = d3.select(self).select('path').attr('toggle');
-         var shape = d3.svg.symbol().type(options.legend.symbol).size(150)()
-         if (state == 'false') {
-            // var shape = d3.svg.symbol().type(options.legend.toggle).size(150)()
-         }
-         d3.select(self).select('path')
-                        .attr('toggle', state == 'true' ? 'false' : 'true' )
-                        .attr('d', function(d, i) { return shape; });
+         legend_toggles[d] = legend_toggles[d] ? false : true;
+         update();
    }
 
    function tooltip_show(d, i, self) {
+         if (legend_toggles[d._i]) return;
+         var labels = getAxisLabels(_data);
+         chart_node.select('[key="'+d.axis+'"]').select('text').style('opacity', 1);
          var value = d.original_value ? d.original_value : Format(d.value);
          newX =  parseFloat(d3.select(self).attr('cx')) - 10;
          newY =  parseFloat(d3.select(self).attr('cy')) - 10;
@@ -958,7 +997,9 @@ function RadarChart() {
           .style('opacity', 1);
    }
 
-   function tooltip_hide() {
+   function tooltip_hide(d, i, self) {
+         chart_node.select('[key="'+d.axis+'"]').select('text')
+             .style('opacity', options.axes.display && radial_calcs.radius > options.axes.threshold ? 1 : 0);
          tooltip
           .transition().duration(200)
           .style("opacity", 0);
@@ -1006,7 +1047,21 @@ function RadarChart() {
 	  });
 	}
 
+   window.addEventListener( 'resize', scaleChart, false );
+
+   function scaleChart() {
+      if (!options.resize || !dom_parent) return;
+      var width_offset = dom_parent.node().getBoundingClientRect().left;
+      var height_offset = dom_parent.node().getBoundingClientRect().top;
+      var width = Math.min(options.widthMax, document.documentElement.clientWidth - width_offset);
+      var height = Math.min(options.heightMax, document.documentElement.clientHeight - height_offset);
+      options.height = height;
+      options.width = width;
+      chart.update();
+   }
+
    return chart;
+
 }
 
 var UUID = (function() {
