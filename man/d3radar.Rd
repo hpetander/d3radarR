@@ -2,12 +2,13 @@
 % Please edit documentation in R/d3radar.R
 \name{d3radar}
 \alias{d3radar}
-\title{<Add Title>}
+\title{Interactive Radar Charts}
 \usage{
 d3radar(data = NULL, width = NULL, height = NULL)
 }
 \description{
-<Add Description>
+Create interactive d3.js \href{https://github.com/TennisVisuals/updating-radar-chart}{radar charts}
+  with the convenience, flexibility, and infrastructure of an \code{htmlwidget}.
 }
 \examples{
 # devtools::install_github("timelyportfolio/d3radarR")

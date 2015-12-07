@@ -1,6 +1,7 @@
-#' <Add Title>
+#' Interactive Radar Charts
 #'
-#' <Add Description>
+#' Create interactive d3.js \href{https://github.com/TennisVisuals/updating-radar-chart}{radar charts}
+#'   with the convenience, flexibility, and infrastructure of an \code{htmlwidget}.
 #'
 #' @example inst/examples/examples.R
 #' 
