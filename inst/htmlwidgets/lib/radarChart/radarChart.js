@@ -110,7 +110,7 @@ function RadarChart() {
    var _data = [];
    var legend_toggles = [];
    var radial_calcs = {};
-   var Format = d3.format('%'); // Percentage formatting
+   //var Format = d3.format('%'); // Percentage formatting
    var transition_time = 0;
    var delay = 0;
    var keys;
